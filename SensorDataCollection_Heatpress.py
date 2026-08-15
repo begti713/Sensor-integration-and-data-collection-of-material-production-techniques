@@ -9,7 +9,6 @@ BAUDRATE = 9600
 THERMOCOUPLE_SLAVE_ID = 1  
 HUMIDITY_SLAVE_ID = 2      
 
-# Updated filename to match the visualization script
 CSV_FILENAME = "heatpress_rawdata.csv"
 POLL_INTERVAL = 5.0  # seconds
 
@@ -24,7 +23,6 @@ def main():
         parity='N'
     )
 
-    # Setup CSV with the updated "Time (min)" header
     with open(CSV_FILENAME, mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([
@@ -43,7 +41,6 @@ def main():
     print("Connected to RS485 bus. Starting data collection...")
     print("Press Ctrl+C to stop.")
 
-    # Record the exact start time before the loop begins
     start_time = time.time()
 
     try:
