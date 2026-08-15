@@ -1,6 +1,5 @@
 import csv
 import time
-from datetime import datetime
 from pymodbus.client import ModbusSerialClient
 
 SERIAL_PORT = "COM3" 
@@ -14,21 +13,13 @@ CSV_FILENAME = "vacuum_drying_data.csv"
 POLL_INTERVAL = 5.0  # seconds
 
 def main():
-    # Initialize Modbus RTU 
-    client = ModbusSerialClient(
-        port=SERIAL_PORT,
-        baudrate=BAUDRATE,
-        timeout=2.0,
-        stopbits=1,
-        bytesize=8,
-        parity='N'
-    )
+    client = ModbusSerialClient(...)
 
-    # Setup CSV
+    # Setup CSV with the updated "Time (min)" header
     with open(CSV_FILENAME, mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([
-            "Timestamp", 
+            "Time (min)", 
             "Oven Temp (°C)", 
             "Shelf Temp (°C)", 
             "Core Temp (°C)", 
@@ -37,34 +28,31 @@ def main():
 
     print(f"Opening Serial Port {SERIAL_PORT}...")
     if not client.connect():
-        print(f"Error: Could not open {SERIAL_PORT}. Check your USB-to-RS485 adapter.")
         return
 
     print("Connected to RS485 bus. Starting data collection...")
-    print("Press Ctrl+C to stop.")
+    
+    # RECORD START TIME HERE
+    start_time = time.time()
 
     try:
         while True:
-            current_time = datetime.now().isoformat(timespec='seconds')
+            # Calculate elapsed minutes
+            elapsed_seconds = time.time() - start_time
+            current_minute = round(elapsed_seconds / 60.0, 2)
             
-            # Read temperatures sensors
             temp_response = client.read_holding_registers(address=0, count=3, slave=THERMOCOUPLE_SLAVE_ID)
-            
-            # Read vacuum sensor
             vacuum_response = client.read_holding_registers(address=1, count=1, slave=VACUUM_SLAVE_ID)
 
-            # Process raw data
             if temp_response.isError() or vacuum_response.isError():
-                print(f"[{current_time}] Communication Error.")
+                print(f"[Min: {current_minute}] Communication Error.")
             else:
-
                 oven_temp  = round(temp_response.registers[0] * 0.1, 1)
                 shelf_temp = round(temp_response.registers[1] * 0.1, 1)
                 core_temp  = round(temp_response.registers[2] * 0.1, 1)
-                
                 vacuum_level = round(vacuum_response.registers[0] * 0.1, 1)
 
-                print(f"[{current_time}] "
+                print(f"[Min: {current_minute}] "
                       f"Oven: {oven_temp}°C | "
                       f"Shelf: {shelf_temp}°C | "
                       f"Core: {core_temp}°C | "
@@ -72,8 +60,9 @@ def main():
 
                 with open(CSV_FILENAME, mode='a', newline='') as file:
                     writer = csv.writer(file)
+                    # Write the current_minute instead of the datetime string
                     writer.writerow([
-                        current_time, 
+                        current_minute, 
                         oven_temp, 
                         shelf_temp, 
                         core_temp, 
@@ -87,7 +76,6 @@ def main():
     
     finally:
         client.close()
-        print("Serial port closed safely.")
 
 if __name__ == "__main__":
     main()
