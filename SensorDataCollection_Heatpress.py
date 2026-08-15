@@ -1,6 +1,5 @@
 import csv
 import time
-from datetime import datetime
 from pymodbus.client import ModbusSerialClient
 
 SERIAL_PORT = "COM3" 
@@ -8,9 +7,10 @@ BAUDRATE = 9600
 
 # Sensor to RS485 bus
 THERMOCOUPLE_SLAVE_ID = 1  
-HUMIDITY_SLAVE_ID = 2     
+HUMIDITY_SLAVE_ID = 2      
 
-CSV_FILENAME = "drying_process_data.csv"
+# Updated filename to match the visualization script
+CSV_FILENAME = "heatpress_rawdata.csv"
 POLL_INTERVAL = 5.0  # seconds
 
 def main():
@@ -24,11 +24,11 @@ def main():
         parity='N'
     )
 
-    # Setup CSV
+    # Setup CSV with the updated "Time (min)" header
     with open(CSV_FILENAME, mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([
-            "Timestamp", 
+            "Time (min)", 
             "Heatpress Temp (°C)", 
             "Mould Temp (°C)", 
             "Core Temp (°C)", 
@@ -43,9 +43,14 @@ def main():
     print("Connected to RS485 bus. Starting data collection...")
     print("Press Ctrl+C to stop.")
 
+    # Record the exact start time before the loop begins
+    start_time = time.time()
+
     try:
         while True:
-            current_time = datetime.now().isoformat(timespec='seconds')
+            # Calculate elapsed minutes
+            elapsed_seconds = time.time() - start_time
+            current_minute = round(elapsed_seconds / 60.0, 2)
             
             # Read temperatures sensors
             temp_response = client.read_holding_registers(address=0, count=3, slave=THERMOCOUPLE_SLAVE_ID)
@@ -55,7 +60,7 @@ def main():
 
             # Process raw data
             if temp_response.isError() or hum_response.isError():
-                print(f"[{current_time}] Communication Error.")
+                print(f"[Min: {current_minute}] Communication Error.")
             else:
 
                 heatpress_temp = round(temp_response.registers[0] * 0.1, 1)
@@ -64,7 +69,7 @@ def main():
                 
                 material_humidity = round(hum_response.registers[0] * 0.1, 1)
 
-                print(f"[{current_time}] "
+                print(f"[Min: {current_minute}] "
                       f"Press: {heatpress_temp}°C | "
                       f"Mould: {mould_temp}°C | "
                       f"Core: {core_temp}°C | "
@@ -72,8 +77,9 @@ def main():
 
                 with open(CSV_FILENAME, mode='a', newline='') as file:
                     writer = csv.writer(file)
+                    # Write the numerical current_minute instead of a timestamp
                     writer.writerow([
-                        current_time, 
+                        current_minute, 
                         heatpress_temp, 
                         mould_temp, 
                         core_temp, 
